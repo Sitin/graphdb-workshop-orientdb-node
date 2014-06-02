@@ -1,0 +1,35 @@
+{
+  "name": "graphdb-workshop-orientdb",
+  "version": "0.0.0",
+  "description": "OrientDB managed by Oriento as a part of graph database workshop",
+  "main": "index.js",
+  "scripts": {
+    "test": "grunt test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Sitin/graphdb-workshop-orientdb-node.git"
+  },
+  "keywords": [
+    "graphs",
+    "graphdb",
+    "OrientDB",
+    "orientdb",
+    "oriento"
+  ],
+  "author": "Mikhail Zyatin <mikhail.zyatin@gmail.com> (http://zyatin.org/)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Sitin/graphdb-workshop-orientdb-node/issues"
+  },
+  "homepage": "https://github.com/Sitin/graphdb-workshop-orientdb-node",
+  "dependencies": {
+    "async": "^0.9.0",
+    "bluebird": "^1.2.4",
+    "change-case": "^2.1.1",
+    "lodash": "^2.4.1",
+    "moment": "^2.6.0",
+    "oriento": "^0.3.1",
+    "twit": "^1.1.15"
+  }
+}
