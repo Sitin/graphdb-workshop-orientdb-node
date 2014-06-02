@@ -29,60 +29,84 @@ server.list()
         database.resolve db
 
 
+#
+# Maps from all tags in text
+#
+mapTagsIn = (text, cb) ->
+  (text.match(/#[\w\d]+/g) || []).map cb
+
+
+#
+# Converts RID to string
+#
+ridToString = (rid) ->
+  "##{rid.cluster}:#{rid.position}"
+
+
+#
+# Strip 'in_reply_to_' and convert to camelCase
+#
+transformInReplyKey = (key) ->
+  changeCase.camelCase key.replace 'in_reply_to_', ''
+
+
+#
+# Tests whether this is a in reply to field
+#
+isInReplyTo = (key) ->
+  /^in_reply_to_/.test key
+
+
+#
+# Returns hash with in_reply_to fields
+#
+getInReplyTo = (data) ->
+  result = {}
+  _.forOwn data, (value, key) ->
+    if isInReplyTo key
+      result[transformInReplyKey key] = value
+  # Return null instead of object of nulls
+  if _.every(result, (value) -> value is null)
+    result = null
+  # Return value
+  result
+
+
+#
+# Returns true if field should be excluded from tweet model
+#
+isExcludedTweetField = (key) ->
+  ['user', 'created_at', 'text'].indexOf(key) > -1 or isInReplyTo key
+
+
+#
+# Converts data to Twitter model class
+#
+getTweetModelFromData = (data) ->
+  # Construct Tweet model
+  '@class': 'VTweet'
+  text:       data.text
+  createdAt:  moment.utc(new Date data.created_at).format 'YYYY-MM-DD HH:mm:ss'
+  user:       data.user
+  inReplyTo:  getInReplyTo data
+  data:       _.omit data, isExcludedTweetField
+
+
 # Play with database
 database.promise.then (db) ->
   # Show amount of vertices
   db.select().from('V').all().then (vertices) ->
     console.log "Total amount of vertices is #{vertices.length}."
 
-  # Known locations bounds
-  locations =
-    SanFrancisco: [ '-122.75', '36.8', '-121.75', '37.8' ]
-    Kiev:         [ '50.6', '30.25', '50.33',	'30.84' ]
-    Ukraine:      [ '52.14', '22.25', '44.94', '39.87' ]
-
   # Setup Twitter
   twitter = new Twitter require './.twitter-auth.json'
-  stream = twitter.stream 'statuses/filter', locations: locations.SanFrancisco
-
-  # Applies function for all tags in text
-  mapTagsIn = (text, cb) ->
-    (text.match(/#[\w\d]+/g) || []).map cb
-
-  ridToString = (rid) ->
-    "##{rid.cluster}:#{rid.position}"
+  stream = twitter.stream 'statuses/filter', track: '#apple'
 
   # Specify index
   tagsIndex = db.index.get('VTag.name')
 
   # Create event responder
   events = new EventEmitter
-
-  # Converts data to Twitter model class
-  getTweetModelFromData = (data) ->
-    # Strip 'in_reply_to_' and convert to camelCase
-    transformInReplyKey = (key) ->
-      changeCase.camelCase key.replace 'in_reply_to_', ''
-
-    # Returns hash with in_reply_to fields
-    getInReplyTo = (data) ->
-      result = {}
-      _.forOwn data, (value, key) ->
-        if /^in_reply_to_/.test key
-          result[transformInReplyKey key] = value
-      # Return null instead of object of nulls
-      if _.every(result, (value) -> value is null)
-        result = null
-      # Return value
-      result
-
-    # Construct Tweet model
-    '@class': 'VTweet'
-    text:       data.text
-    createdAt:  moment.utc(new Date data.created_at).format 'YYYY-MM-DD HH:mm:ss'
-    user:       data.user
-    inReplyTo:  getInReplyTo data
-    data:       _.omit data, ['user', 'created_at', 'text']
 
   #
   # Process tweets and load them to database
