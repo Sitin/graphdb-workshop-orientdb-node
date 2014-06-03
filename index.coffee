@@ -8,6 +8,7 @@ Twitter = require 'twit'
 moment = require 'moment'
 _ = require 'lodash'
 changeCase = require 'change-case'
+assert = require 'assert'
 
 # Configure server instance
 server = Oriento require './.orientdb-connection.json'
@@ -80,16 +81,25 @@ isExcludedTweetField = (key) ->
 
 
 #
-# Converts data to Twitter model class
+# Converts data to Twitter model object
 #
-getTweetModelFromData = (data) ->
+tweetModel = (data) ->
   # Construct Tweet model
   '@class': 'VTweet'
   text:       data.text
   createdAt:  moment.utc(new Date data.created_at).format 'YYYY-MM-DD HH:mm:ss'
-  user:       data.user
   inReplyTo:  getInReplyTo data
   data:       _.omit data, isExcludedTweetField
+
+
+#
+# Converts data to Twitter user model object
+#
+# assert.deepEqual {'@class': 'VUser', aA: 1, bB: 2}, userModel {a_a: 1, b_b: 2}
+#
+userModel = (data) ->
+  camelCased = _.zipObject ([changeCase.camelCase(key), value] for key, value of data)
+  _.merge {'@class': 'VUser'}, camelCased
 
 
 # Play with database
@@ -102,9 +112,6 @@ database.promise.then (db) ->
   twitter = new Twitter require './.twitter-auth.json'
   stream = twitter.stream 'statuses/filter', track: '#apple'
 
-  # Specify index
-  tagsIndex = db.index.get('VTag.name')
-
   # Create event responder
   events = new EventEmitter
 
@@ -112,44 +119,72 @@ database.promise.then (db) ->
   # Process tweets and load them to database
   #
   stream.on 'tweet', (data) ->
-    db.vertex.create(getTweetModelFromData(data))
+    db.vertex.create(tweetModel(data))
     .then (tweet) ->
-      # Report tweet saving
-      events.emit 'tweet', tweet
-      # Save related tags
-      saveTags(tweet).then (tags) ->
-        events.emit 'tweet and tags', tweet: tweet, tags: tags
+      # Whait for every job to be done before report
+      Promise.all([
+        saveUser(tweet, data.user) # Save tweet's user
+        saveTags(tweet)            # Save related tags
+      ]).then (results) ->
+        # Report tweet saving
+        events.emit 'everything for tweet', results
+
+  #
+  # Inserts model or updates it
+  #
+  insertOrGet = (model) ->
+    Promise.try ->
+      db.vertex.create model
+    .then (record) ->
+      return record
+    , (error) ->
+      matches = error.message.match /previously assigned to the record (#\d+:\d+)$/
+      db.record.get matches[1]
+
+  #
+  # Saves and connects to pair vertex
+  #
+  saveAndConnect = (model, pair, direction='<-', edgeClass='E') ->
+    pairRid = ridToString pair['@rid']
+    record = null
+
+    insertOrGet model
+    # Retrieve user RID in OrientDB format
+    .then (_rec) ->
+      record = _rec
+      events.emit record['@class'], record
+      ridToString(record['@rid'] || record.rid)
+    # Create edge from tweet to tag
+    .then (recordRid) ->
+      if direction == '<-'
+        [vOut, vIn] = [pairRid, recordRid]
+      else if direction == '->'
+        [vOut, vIn] = [recordRid, pairRid]
+      db.edge.from(vOut).to(vIn).create '@class': edgeClass
+    # Emit edge and return tag to be resolved as promise
+    .then (edge) ->
+      events.emit "#{record['@class']} -- #{pair['@class']}", edge
+      record
 
   #
   # Processes tweet tags and loads them to database
   #
   saveTags = (tweet) ->
-    tweetRid = ridToString tweet['@rid']
-
     # Loop over all tags in tweet
-    Promise.all (mapTagsIn tweet.text, (tagName) ->
-      # Find tag key by name in unique index
-      tagsIndex.then (tagsIndex) ->
-        tagsIndex.get tagName
-      # Create or load tag form database
-      .then (tag) ->
-        if (!tag) then db.vertex.create '@class': 'VTag', name: tagName
-        else db.record.get ridToString tag.rid
-      # Retrieve tag RID in OrientDB format
-      .then (tag) ->
-        events.emit 'tag', tag
-        ridToString(tag['@rid'] || tag.rid)
-      # Create edge from tweet to tag
-      .then (tagRid) ->
-        db.edge.from(tweetRid).to(tagRid).create '@class': 'E'
-      # Emit edge and return tag to be resolved as promise
-      .then (edge) ->
-        events.emit 'tag to tweet', edge
-        tagName
+    Promise.all(mapTagsIn tweet.text, (tagName) ->
+      saveAndConnect({'@class': 'VTag', name: tagName}, tweet)
+      .then -> tagName
     )
+
+  #
+  # Saves tweet's user info
+  #
+  saveUser = (tweet, userData) ->
+    saveAndConnect(userModel(userData), tweet, '->')
+    .then (user) -> user.id
 
   #
   # Report about tags and tweet saving
   #
-  events.on 'tag to tweet', ->
+  events.on 'everything for tweet', ->
     console.log '.'
