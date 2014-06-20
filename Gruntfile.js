@@ -75,7 +75,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-coffeelint');
     grunt.loadNpmTasks('grunt-contrib-clean');
 
-    grunt.registerTask('compile', ['coffeelint', 'coffee']);
+    grunt.registerTask('compile', ['clean', 'coffeelint', 'coffee']);
     grunt.registerTask('test', ['compile', 'complexity', 'jshint', 'mochacli', 'watch']);
     grunt.registerTask('ci', ['compile', 'complexity', 'jshint', 'mochacli']);
     grunt.registerTask('default', ['test']);
