@@ -13,20 +13,18 @@ module.exports = function (grunt) {
         coffee: {
             app: {
                 expand: true,
-                flatten: true,
                 options: {
                     sourceMap: true
                 },
                 cwd: 'coffee/',
-                src: ['*.coffee'],
+                src: ['**/*.coffee'],
                 dest: 'lib/',
                 ext: '.js'
             },
             tests: {
                 expand: true,
-                flatten: true,
                 cwd: 'test/',
-                src: ['*.coffee'],
+                src: ['**/*.coffee'],
                 dest: 'test/',
                 ext: '.js'
             }
