@@ -4,6 +4,8 @@
   "description": "OrientDB managed by Oriento as a part of graph database workshop",
   "main": "index.js",
   "scripts": {
+    "ci": "grunt ci",
+    "compile": "grunt compile",
     "test": "grunt test"
   },
   "repository": {
@@ -31,5 +33,17 @@
     "moment": "^2.6.0",
     "oriento": "^0.3.1",
     "twit": "^1.1.15"
+  },
+  "devDependencies": {
+    "chai": "~1.8.1",
+    "grunt": "^0.4.5",
+    "grunt-cli": "~0.1.9",
+    "grunt-coffeelint": "0.0.10",
+    "grunt-complexity": "~0.1.3",
+    "grunt-contrib-clean": "^0.5.0",
+    "grunt-contrib-coffee": "^0.10.1",
+    "grunt-contrib-jshint": "~0.6.4",
+    "grunt-contrib-watch": "~0.5.3",
+    "grunt-mocha-cli": "~1.1.0"
   }
 }

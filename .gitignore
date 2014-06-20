@@ -1,10 +1,11 @@
 .idea
+*.swp
 .DS_Store
 
 node_modules/
+npm-debug.log
 
 .twitter-auth.json
 .orientdb-connection.json
 
-/*.js
-/*.map
+/lib/
