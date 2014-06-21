@@ -34,9 +34,10 @@ module.exports = function (grunt) {
                 src: ['lib/**/*.js'],
                 options: {
                     errorsOnly: false,
-                    cyclometric: 6,       // default is 3
-                    halstead: 16,         // default is 8
-                    maintainability: 100  // default is 100
+                    cyclometric: 6,        // default is 3
+                    halstead: 16,          // default is 8
+                    maintainability: 100,  // default is 100
+                    hideComplexFunctions: true
                 }
             }
         },
